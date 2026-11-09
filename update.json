@@ -1,0 +1,7 @@
+{
+    "*": {
+        "version": "1.0.0",
+        "download_url": "https://github.com/MaitreAntho/pelican-player-manager/releases/download/v1.0.0/player-manager.zip",
+        "sha256": "fa45b31329d1d9c1cb050e8ebc4329d5ea3df1fd0bdbbe29a4b1ed0c2e4ce077"
+    }
+}
