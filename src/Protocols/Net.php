@@ -2,6 +2,9 @@
 
 namespace MaitreAntho\PlayerManager\Protocols;
 
+use Illuminate\Support\Facades\Http;
+use Throwable;
+
 /** Small socket helpers shared by every protocol. */
 final class Net
 {
@@ -63,36 +66,47 @@ final class Net
         return $out;
     }
 
-    /** @param resource $s */
+    /** Sends everything on a socket (TCP may take several calls, UDP sends one datagram). @param resource $s */
     public static function write($s, string $data): void
     {
-        if (@fwrite($s, $data) === false) {
-            throw new ProtocolException('Cannot send to the server.');
+        $sent = 0;
+        $len = strlen($data);
+        while ($sent < $len) {
+            $n = @stream_socket_sendto($s, substr($data, $sent));
+            if ($n === false || $n < 0) {
+                throw new ProtocolException('Cannot send to the server.');
+            }
+            if ($n === 0) {
+                usleep(10_000);
+            }
+            $sent += $n;
         }
     }
 
     /**
-     * Plain HTTP(S) request, kept on PHP streams so it runs anywhere.
+     * HTTP(S) request through Laravel's client. Game servers use self-signed
+     * certificates (Satisfactory), so they are not verified.
      *
-     * @param  string[]  $headers
+     * @param  string[]  $headers  "Name: value" lines
      * @return array{status: int, body: string, json: mixed}
      */
     public static function http(string $method, string $url, float $timeout, array $headers = [], ?string $body = null): array
     {
-        $ctx = stream_context_create([
-            'http' => ['method' => $method, 'header' => implode("\r\n", $headers), 'content' => $body ?? '', 'timeout' => $timeout, 'ignore_errors' => true],
-            'ssl' => ['verify_peer' => false, 'verify_peer_name' => false],
-        ]);
-        $raw = @file_get_contents($url, false, $ctx);
-        if ($raw === false) {
+        $h = [];
+        foreach ($headers as $line) {
+            [$name, $value] = array_map('trim', explode(':', $line, 2) + [1 => '']);
+            $h[$name] = $value;
+        }
+        try {
+            $request = Http::withHeaders($h)->timeout((int) ceil($timeout))->connectTimeout((int) ceil($timeout))->withoutVerifying();
+            if ($body !== null) {
+                $request = $request->withBody($body, $h['Content-Type'] ?? 'application/json');
+            }
+            $response = $request->send($method, $url);
+        } catch (Throwable) {
             throw new ProtocolException('No answer from the server.');
         }
-        $status = 0;
-        foreach ($http_response_header ?? [] as $h) {
-            if (preg_match('#^HTTP/\S+\s+(\d+)#', $h, $m)) {
-                $status = (int) $m[1];
-            }
-        }
+        $status = $response->status();
         if ($status === 401 || $status === 403) {
             throw new AuthenticationException('The server refused the password.');
         }
@@ -100,6 +114,6 @@ final class Net
             throw new ProtocolException("HTTP $status from the server.");
         }
 
-        return ['status' => $status, 'body' => $raw, 'json' => json_decode($raw, true)];
+        return ['status' => $status, 'body' => $response->body(), 'json' => json_decode($response->body(), true)];
     }
 }
