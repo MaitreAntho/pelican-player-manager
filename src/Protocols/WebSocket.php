@@ -75,7 +75,7 @@ final class WebSocket
 
     public function close(): void
     {
-        @fwrite($this->s, "\x88\x80" . random_bytes(4));
+        @stream_socket_sendto($this->s, "\x88\x80" . random_bytes(4));
         @fclose($this->s);
     }
 }
