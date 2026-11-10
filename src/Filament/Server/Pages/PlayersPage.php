@@ -65,9 +65,22 @@ class PlayersPage extends Page implements HasTable
         /** @var Server|null $server */
         $server = Filament::getTenant();
 
-        return parent::canAccess() && $server
-            && (user()?->can(self::READ, $server) ?? false)
-            && app(PlayerService::class)->game($server) !== null;
+        if (!parent::canAccess() || !$server || !(user()?->can(self::READ, $server) ?? false)) {
+            return false;
+        }
+        $service = app(PlayerService::class);
+        if ($service->game($server) !== null) {
+            return true;
+        }
+
+        // Turned off by hand on this server: whoever can configure keeps the page, to turn it back on.
+        return $service->setting($server)?->game === 'none' && (user()?->can(self::CONFIGURE, $server) ?? false);
+    }
+
+    /** No game for this server: the page only offers the settings to turn it back on. */
+    public function disabled(): bool
+    {
+        return $this->service()->game($this->server()) === null;
     }
 
     public static function getNavigationLabel(): string
@@ -110,10 +123,10 @@ class PlayersPage extends Page implements HasTable
 
         return $table
             ->records(fn (?string $search) => $this->rows($search))
-            ->poll(max(5, (int) config('player-manager.refresh', 15)) . 's')
+            ->poll(fn () => $this->disabled() ? null : max(5, (int) config('player-manager.refresh', 15)) . 's')
             ->paginated(false)
             ->searchable()
-            ->emptyStateIcon('tabler-users')
+            ->emptyStateIcon(fn () => $this->disabled() ? 'tabler-power' : 'tabler-users')
             ->emptyStateHeading(fn () => $this->emptyHeading())
             ->emptyStateDescription(fn () => $this->emptyDescription())
             ->columns([
@@ -140,6 +153,7 @@ class PlayersPage extends Page implements HasTable
                 $this->commandAction(),
                 Action::make('refresh')->label($t('actions.refresh'))->icon('tabler-refresh')->color('gray')->iconButton()
                     ->tooltip($t('actions.refresh'))
+                    ->hidden(fn () => $this->disabled())
                     ->action(fn () => $this->service()->players($this->server(), fresh: true)),
                 $this->settingsAction(),
             ]);
@@ -148,6 +162,9 @@ class PlayersPage extends Page implements HasTable
     /** @return array<string, array<string, mixed>> */
     protected function rows(?string $search): array
     {
+        if ($this->disabled()) {
+            return [];
+        }
         $result = $this->state()['result'];
         $players = $result?->players ?? [];
         // A list asked through the console (games that share no names) stays two minutes.
@@ -179,6 +196,9 @@ class PlayersPage extends Page implements HasTable
 
     protected function emptyHeading(): string
     {
+        if ($this->disabled()) {
+            return trans('player-manager::strings.disabled_title');
+        }
         $state = $this->state();
         if ($state['error']) {
             return trans('player-manager::strings.errors.' . $state['error'] . '_title');
@@ -192,6 +212,9 @@ class PlayersPage extends Page implements HasTable
 
     protected function emptyDescription(): ?string
     {
+        if ($this->disabled()) {
+            return trans('player-manager::strings.disabled_help');
+        }
         $state = $this->state();
         if ($state['error']) {
             $game = $this->service()->game($this->server());
@@ -304,7 +327,7 @@ class PlayersPage extends Page implements HasTable
             ->icon('tabler-terminal-2')
             ->color('gray')
             ->button()
-            ->visible(fn () => $this->can(self::COMMAND))
+            ->visible(fn () => $this->can(self::COMMAND) && !$this->disabled())
             ->modalDescription(fn () => $this->service()->rconTarget($this->server()) ? $t('actions.command_rcon') : $t('actions.command_console'))
             ->schema([TextInput::make('command')->label($t('actions.command'))->required()->maxLength(500)->extraInputAttributes(['class' => 'font-mono'])])
             ->modalSubmitActionLabel($t('actions.run'))
@@ -412,6 +435,9 @@ class PlayersPage extends Page implements HasTable
         $svc = $this->service();
         $server = $this->server();
         $game = $svc->game($server);
+        if ($game === null) {
+            return trans('player-manager::strings.settings.none');
+        }
         $q = $svc->queryTarget($server);
         $r = $svc->rconTarget($server);
         $t = fn (string $k, array $p = []) => trans("player-manager::strings.$k", $p);
@@ -426,6 +452,9 @@ class PlayersPage extends Page implements HasTable
     /** Header line: players, map, source and freshness. */
     public function summary(): ?string
     {
+        if ($this->disabled()) {
+            return null;
+        }
         $state = $this->state();
         $r = $state['result'];
         if (!$r) {
