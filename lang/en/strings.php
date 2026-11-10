@@ -3,6 +3,8 @@
 return [
     'title' => 'Players',
     'nobody' => 'Nobody is online',
+    'disabled_title' => 'Player Manager is turned off for this server',
+    'disabled_help' => 'This server is set as not a game server. Choose its game, or Automatic, in the settings (top right) to turn it back on.',
     'count_only' => ':count players online',
     'count_only_help' => 'This game shares how many players are online, but not their names.',
     'no_output' => '(no answer)',
