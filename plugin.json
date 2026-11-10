@@ -2,7 +2,7 @@
     "id": "player-manager",
     "name": "Player Manager",
     "author": "MaitreAntho",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "See who is playing on every game server and kick, ban, message or whitelist them from the panel. Supports 100+ games: Minecraft, Rust, ARK, Garry's Mod, CS, Palworld, Project Zomboid, 7 Days to Die, DayZ, FiveM and more.",
     "category": "plugin",
     "url": "https://github.com/MaitreAntho/pelican-player-manager",
