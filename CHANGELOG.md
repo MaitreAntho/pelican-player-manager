@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 - 2026-11-10
+
+- **Fixed**: setting a server's game to "Not a game server" hid the Players page, and with it the settings, so there was no way to turn it back on. The page now stays available to users who can configure it, with a "turned off" notice and the settings button. Other users still don't see it.
+
 ## 1.0.0 - 2026-11-09
 
 First release.
