@@ -3,6 +3,8 @@
 return [
     'title' => 'Joueurs',
     'nobody' => 'Personne n’est connecté',
+    'disabled_title' => 'Player Manager est désactivé sur ce serveur',
+    'disabled_help' => 'Ce serveur est réglé comme n’étant pas un serveur de jeu. Choisissez son jeu, ou Automatique, dans les réglages (en haut à droite) pour le réactiver.',
     'count_only' => ':count joueurs connectés',
     'count_only_help' => 'Ce jeu indique le nombre de joueurs connectés, mais pas leurs noms.',
     'no_output' => '(pas de réponse)',
