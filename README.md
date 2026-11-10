@@ -31,6 +31,8 @@ A **Players** page on every game server lists the connected players, with their 
 ### 🧩 Your own player actions
 Add your own commands to each player's menu from the server's settings: `mute {name} {text}`, `tp {name} spawn`, `heal {name}`... `{name}` is the player, `{id}` their id when the game gives one, and `{text}` asks for a value (a duration, a reason) when you click. Works for every game.
 
+<p align="center"><img src="docs/custom-actions.png" alt="Custom actions in a player's menu" width="60%" /></p>
+
 ### ⛏️ Minecraft extras
 On Minecraft Java servers, the **operators**, the **whitelist** and the **banned players** are shown straight from `ops.json`, `whitelist.json` and `banned-players.json`, even when nobody is online. Add a player by name or remove one in a click. Every player gets their **skin head** next to their name.
 
