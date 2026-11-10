@@ -23,7 +23,7 @@
         </x-filament::section>
     @endif
 
-    @if (config('player-manager.history', true))
+    @if (config('player-manager.history', true) && !$this->disabled())
         <div style="display:grid;gap:1.5rem;align-items:start;grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))">
             <x-filament::section icon="tabler-chart-bar" :heading="trans('player-manager::strings.history.peaks')" :description="trans('player-manager::strings.history.peaks_help')">
                 <div style="display:flex;align-items:flex-end;gap:4px;height:120px" role="img" aria-label="{{ trans('player-manager::strings.history.peaks') }}">
