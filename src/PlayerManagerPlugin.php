@@ -35,6 +35,7 @@ class PlayerManagerPlugin implements HasPluginSettings, Plugin
             'history' => (bool) config('player-manager.history', true),
             'retention_days' => (int) config('player-manager.retention_days', 30),
             'refresh' => (int) config('player-manager.refresh', 15),
+            'heads' => (bool) config('player-manager.heads', true),
         ];
     }
 
@@ -45,6 +46,7 @@ class PlayerManagerPlugin implements HasPluginSettings, Plugin
         return [
             TextInput::make('host')->label($t('host'))->helperText($t('host_help'))->maxLength(255),
             TextInput::make('refresh')->label($t('refresh'))->helperText($t('refresh_help'))->integer()->minValue(5)->maxValue(300)->suffix('s')->required(),
+            Toggle::make('heads')->label($t('heads'))->helperText($t('heads_help')),
             Toggle::make('history')->label($t('history'))->helperText($t('history_help')),
             TextInput::make('retention_days')->label($t('retention'))->integer()->minValue(1)->maxValue(365)->suffix($t('days'))->required(),
         ];
@@ -57,6 +59,7 @@ class PlayerManagerPlugin implements HasPluginSettings, Plugin
             'PLAYER_MANAGER_HISTORY' => !empty($data['history']) ? 'true' : 'false',
             'PLAYER_MANAGER_RETENTION_DAYS' => (int) $data['retention_days'],
             'PLAYER_MANAGER_REFRESH' => (int) $data['refresh'],
+            'PLAYER_MANAGER_HEADS' => !empty($data['heads']) ? 'true' : 'false',
         ]);
 
         Notification::make()->title(trans('player-manager::strings.settings.saved'))->success()->send();

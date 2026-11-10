@@ -70,6 +70,8 @@ return [
         'host_help' => 'Adresse utilisée par le panel pour joindre les serveurs de jeu. Vide : l’IP de l’allocation, ou l’adresse du node quand l’allocation écoute sur 0.0.0.0.',
         'refresh' => 'Actualiser toutes les',
         'refresh_help' => 'Fréquence de mise à jour de la liste des joueurs sur la page.',
+        'heads' => 'Têtes des skins Minecraft',
+        'heads_help' => 'Affiche la tête du skin de chaque joueur devant son nom sur les serveurs Minecraft Java. Les images sont chargées par le navigateur depuis minotar.net.',
         'history' => 'Garder l’historique des joueurs',
         'history_help' => 'Enregistre qui a joué et le pic du jour, une fois par minute, uniquement par requête (rien n’est écrit dans les consoles des serveurs).',
         'retention' => 'Garder l’historique',
@@ -97,6 +99,25 @@ return [
         'map' => 'carte :map',
         'via' => 'par :protocol',
         'peak_today' => 'pic du jour : :count',
+    ],
+
+    'custom' => [
+        'title' => 'Actions perso sur les joueurs',
+        'help' => 'Commandes ajoutées au menu de chaque joueur. Utilisez {name} pour le pseudo, {id} pour son identifiant quand le jeu le donne, et {text} pour qu’une valeur soit demandée (une durée, une raison...). Écrivez-les comme dans la console du serveur.',
+        'label' => 'Nom', 'command' => 'Commande', 'add' => 'Ajouter une action',
+        'text' => 'Valeur',
+        'done' => ':action : envoyé pour :name',
+    ],
+
+    'lists' => [
+        'ops' => 'Opérateurs',
+        'whitelist' => 'Liste blanche',
+        'banned' => 'Joueurs bannis',
+        'empty' => 'Personne pour l’instant.',
+        'level' => 'niveau :level',
+        'add' => 'Ajouter', 'remove' => 'Retirer', 'player' => 'Pseudo du joueur',
+        'add_heading' => ['ops' => 'Rendre un joueur opérateur', 'whitelist' => 'Ajouter un joueur à la liste blanche', 'banned' => 'Bannir un joueur'],
+        'remove_heading' => ['ops' => 'Retirer :name des opérateurs', 'whitelist' => 'Retirer :name de la liste blanche', 'banned' => 'Débannir :name'],
     ],
 
     'history' => [

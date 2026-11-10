@@ -9,12 +9,14 @@ use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
@@ -130,6 +132,10 @@ class PlayersPage extends Page implements HasTable
             ->emptyStateHeading(fn () => $this->emptyHeading())
             ->emptyStateDescription(fn () => $this->emptyDescription())
             ->columns([
+                ImageColumn::make('head')->label('')->width('1%')->imageSize(24)
+                    ->state(fn (array $record) => $this->service()->head($this->server(), (string) $record['name'], $record['id'] ?? null))
+                    ->extraImgAttributes(['style' => 'image-rendering:pixelated;border-radius:3px', 'loading' => 'lazy', 'alt' => '', 'onerror' => "this.onerror=null;this.src='" . PlayerService::DEFAULT_HEAD . "'"])
+                    ->visible(fn () => $this->hasHeads()),
                 TextColumn::make('name')->label($t('columns.name'))->weight('medium')->wrap(),
                 TextColumn::make('id')->label($t('columns.id'))->fontFamily('mono')->copyable()->placeholder('-')->toggleable()->visible(fn () => $this->hasColumn('id')),
                 TextColumn::make('score')->label($t('columns.score'))->numeric()->placeholder('-')->toggleable()->visible(fn () => $this->hasColumn('score')),
@@ -139,12 +145,14 @@ class PlayersPage extends Page implements HasTable
             ->recordActions([
                 $this->playerAction('kick', 'tabler-door-exit', 'warning', true),
                 $this->playerAction('ban', 'tabler-ban', 'danger', true),
+                // ->grouped(): the panel shows actions as icon buttons by default, the menu needs their names.
                 ActionGroup::make([
-                    $this->playerAction('whitelist', 'tabler-user-check', 'gray', false),
-                    $this->playerAction('unwhitelist', 'tabler-user-x', 'gray', false),
-                    $this->playerAction('op', 'tabler-crown', 'gray', false),
-                    $this->playerAction('deop', 'tabler-crown-off', 'gray', false),
-                ])->visible(fn () => $this->can(self::MANAGE) && array_intersect(['whitelist', 'op'], $this->service()->actions($this->server()))),
+                    $this->playerAction('whitelist', 'tabler-user-check', 'gray', false)->grouped(),
+                    $this->playerAction('unwhitelist', 'tabler-user-x', 'gray', false)->grouped(),
+                    $this->playerAction('op', 'tabler-crown', 'gray', false)->grouped(),
+                    $this->playerAction('deop', 'tabler-crown-off', 'gray', false)->grouped(),
+                    ...array_map(fn (int $i) => $this->customAction($i)->grouped(), range(0, PlayerService::MAX_CUSTOM_ACTIONS - 1)),
+                ])->visible(fn () => $this->can(self::MANAGE) && (array_intersect(['whitelist', 'op'], $this->service()->actions($this->server())) || $this->service()->customActions($this->server()))),
             ])
             ->headerActions([
                 $this->listAction(),
@@ -180,6 +188,22 @@ class PlayersPage extends Page implements HasTable
         }
 
         return $rows;
+    }
+
+    /** Skin heads before the names: Minecraft Java only, unless turned off in the plugin settings. */
+    public function hasHeads(): bool
+    {
+        return !$this->disabled() && $this->service()->head($this->server(), 'Steve') !== null;
+    }
+
+    /**
+     * Operators, whitelist and bans of a Minecraft Java server, or null for other games.
+     *
+     * @return array<string, list<array{name: string, uuid: ?string, detail: ?string}>>|null
+     */
+    public function lists(): ?array
+    {
+        return $this->disabled() ? null : $this->service()->minecraftLists($this->server());
     }
 
     /** A column is shown only when the game gives that value for at least one player. */
@@ -357,7 +381,7 @@ class PlayersPage extends Page implements HasTable
             ->fillForm(function () {
                 $s = $this->service()->setting($this->server());
 
-                return ['game' => $s?->game ?? 'auto', 'query_port' => $s?->query_port, 'rcon_port' => $s?->rcon_port];
+                return ['game' => $s?->game ?? 'auto', 'query_port' => $s?->query_port, 'rcon_port' => $s?->rcon_port, 'custom_actions' => $this->service()->customActions($this->server())];
             })
             ->schema([
                 Placeholder::make('detected')->label($t('settings.detected'))->content(fn () => $this->describe()),
@@ -367,12 +391,23 @@ class PlayersPage extends Page implements HasTable
                 TextInput::make('rcon_password')->label($t('settings.rcon_password'))->password()->revealable()->maxLength(255)
                     ->placeholder(fn () => $this->service()->setting($this->server())?->rcon_password ? $t('settings.password_kept') : $t('settings.auto'))
                     ->helperText($t('settings.rcon_help')),
+                // Defining commands others can run needs the right to run commands yourself.
+                Repeater::make('custom_actions')->label($t('custom.title'))->helperText($t('custom.help'))
+                    ->visible(fn () => $this->can(self::COMMAND))
+                    ->schema([
+                        TextInput::make('label')->label($t('custom.label'))->required()->maxLength(40)->placeholder('Mute'),
+                        TextInput::make('command')->label($t('custom.command'))->required()->maxLength(200)->placeholder('mute {name} 10m')->regex('/^[^\r\n]+$/'),
+                    ])
+                    ->columns(2)->defaultItems(0)->maxItems(PlayerService::MAX_CUSTOM_ACTIONS)->reorderable()->addActionLabel($t('custom.add')),
             ])
             ->action(function (array $data) {
                 $setting = ServerSetting::firstOrNew(['server_id' => $this->server()->id]);
                 $setting->game = $data['game'] !== 'auto' ? $data['game'] : null;
                 $setting->query_port = $data['query_port'] ?: null;
                 $setting->rcon_port = $data['rcon_port'] ?: null;
+                if ($this->can(self::COMMAND) && array_key_exists('custom_actions', $data)) {
+                    $setting->custom_actions = array_values(array_map(fn ($a) => ['label' => trim((string) $a['label']), 'command' => trim((string) $a['command'])], (array) $data['custom_actions'])) ?: null;
+                }
                 if (filled($data['rcon_password'])) {
                     $setting->rcon_password = $data['rcon_password'];
                 }
@@ -391,6 +426,105 @@ class PlayersPage extends Page implements HasTable
     }
 
     /** @param array{name?: string, id?: ?string} $player */
+    /** One of the commands the owner added to the player menu (slot $index, hidden when unused). */
+    protected function customAction(int $index): Action
+    {
+        $t = fn (string $k, array $r = []) => trans("player-manager::strings.$k", $r);
+        $custom = fn () => $this->service()->customActions($this->server())[$index] ?? null;
+
+        return Action::make("custom_$index")
+            ->label(fn () => $custom()['label'] ?? '')
+            ->icon('tabler-terminal')
+            ->color('gray')
+            ->visible(fn () => $this->can(self::MANAGE) && $custom() !== null)
+            ->authorize(fn () => $this->can(self::MANAGE))
+            ->modalHeading(fn (array $record) => ($custom()['label'] ?? '') . ' · ' . $record['name'])
+            ->modalDescription(fn () => $custom()['command'] ?? null)
+            ->modalSubmitActionLabel($t('actions.run'))
+            ->schema(fn () => str_contains($custom()['command'] ?? '', '{text}') ? [TextInput::make('text')->label($t('custom.text'))->required()->maxLength(200)] : [])
+            ->requiresConfirmation(fn () => !str_contains($custom()['command'] ?? '', '{text}'))
+            ->action(function (array $record, array $data) use ($index, $custom, $t) {
+                try {
+                    $r = $this->service()->runCustom($this->server(), $index, $record, (string) ($data['text'] ?? ''));
+                    $this->log('custom', array_filter(['action' => $custom()['label'] ?? null, 'player' => $record['name'] ?? null, 'command' => $r['command']]));
+                    Notification::make()
+                        ->title($t('custom.done', ['action' => $custom()['label'] ?? '', 'name' => $record['name'] ?? '']))
+                        ->body($r['via'] === 'console' ? $t('done.via_console' . (!empty($r['fallback']) ? '_' . $r['fallback'] : '')) : null)
+                        ->success()->send();
+                    $this->show($r['command'], $r['output']);
+                } catch (Throwable $e) {
+                    $this->fail($e);
+                }
+            });
+    }
+
+    /** The command that takes a player out of each Minecraft list, and the one that adds them. */
+    public const LIST_ACTIONS = ['ops' => ['op', 'deop'], 'whitelist' => ['whitelist', 'unwhitelist'], 'banned' => ['ban', 'unban']];
+
+    /** Adds a player to a Minecraft list by name (they do not need to be online). */
+    public function addToListAction(): Action
+    {
+        $t = fn (string $k, array $r = []) => trans("player-manager::strings.$k", $r);
+
+        return Action::make('addToList')
+            ->label($t('lists.add'))
+            ->icon('tabler-plus')
+            ->color('gray')
+            ->size('sm')
+            ->link()
+            ->visible(fn () => $this->can(self::MANAGE))
+            ->authorize(fn () => $this->can(self::MANAGE))
+            ->modalHeading(fn (array $arguments) => $t('lists.add_heading.' . ($arguments['list'] ?? 'ops')))
+            ->modalSubmitActionLabel($t('lists.add'))
+            ->schema(fn (array $arguments) => array_filter([
+                TextInput::make('name')->label($t('lists.player'))->required()->maxLength(16)->regex('/^[A-Za-z0-9_.]{1,16}$/'),
+                ($arguments['list'] ?? null) === 'banned' ? TextInput::make('reason')->label($t('actions.reason'))->maxLength(200) : null,
+            ]))
+            ->action(function (array $arguments, array $data) {
+                abort_unless($this->can(self::MANAGE), 403);
+                $list = $arguments['list'] ?? '';
+                if (!isset(self::LIST_ACTIONS[$list])) {
+                    return;
+                }
+                $this->perform(self::LIST_ACTIONS[$list][0], ['name' => $data['name']], (string) ($data['reason'] ?? ''));
+                $this->service()->minecraftLists($this->server(), fresh: true);
+            });
+    }
+
+    /** Whether the viewer may change the Minecraft lists (the list buttons are rendered in the view). */
+    public function canManage(): bool
+    {
+        return $this->can(self::MANAGE);
+    }
+
+    /** Takes a player out of a Minecraft list. */
+    public function removeFromListAction(): Action
+    {
+        $t = fn (string $k, array $r = []) => trans("player-manager::strings.$k", $r);
+
+        return Action::make('removeFromList')
+            ->label($t('lists.remove'))
+            ->icon('tabler-x')
+            ->color('gray')
+            ->iconButton()
+            ->size('sm')
+            ->tooltip($t('lists.remove'))
+            ->visible(fn () => $this->can(self::MANAGE))
+            ->authorize(fn () => $this->can(self::MANAGE))
+            ->requiresConfirmation()
+            ->modalHeading(fn (array $arguments) => $t('lists.remove_heading.' . ($arguments['list'] ?? 'ops'), ['name' => $arguments['name'] ?? '']))
+            ->modalSubmitActionLabel($t('lists.remove'))
+            ->action(function (array $arguments) {
+                abort_unless($this->can(self::MANAGE), 403);
+                $list = $arguments['list'] ?? '';
+                if (!isset(self::LIST_ACTIONS[$list]) || !is_string($arguments['name'] ?? null)) {
+                    return;
+                }
+                $this->perform(self::LIST_ACTIONS[$list][1], ['name' => $arguments['name']]);
+                $this->service()->minecraftLists($this->server(), fresh: true);
+            });
+    }
+
     protected function perform(string $action, array $player, string $text = ''): void
     {
         try {

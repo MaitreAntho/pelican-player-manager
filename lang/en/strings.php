@@ -70,6 +70,8 @@ return [
         'host_help' => 'Address the panel uses to reach game servers. Empty: the allocation IP, or the node address when the allocation listens on 0.0.0.0.',
         'refresh' => 'Refresh every',
         'refresh_help' => 'How often the player list updates on the page.',
+        'heads' => 'Minecraft skin heads',
+        'heads_help' => 'Shows each player\'s skin head before their name on Minecraft Java servers. The images are loaded by the browser from minotar.net.',
         'history' => 'Keep player history',
         'history_help' => 'Records who played and the daily peak, once a minute, through queries only (nothing is written to server consoles).',
         'retention' => 'Keep history for',
@@ -97,6 +99,25 @@ return [
         'map' => 'map :map',
         'via' => 'through :protocol',
         'peak_today' => 'peak today: :count',
+    ],
+
+    'custom' => [
+        'title' => 'Custom player actions',
+        'help' => 'Commands added to each player\'s menu. Use {name} for the player name, {id} for their id when the game gives one, and {text} to be asked for a value (a duration, a reason...). Write them as typed in the server console.',
+        'label' => 'Name', 'command' => 'Command', 'add' => 'Add a player action',
+        'text' => 'Value',
+        'done' => ':action: sent for :name',
+    ],
+
+    'lists' => [
+        'ops' => 'Operators',
+        'whitelist' => 'Whitelist',
+        'banned' => 'Banned players',
+        'empty' => 'Nobody yet.',
+        'level' => 'level :level',
+        'add' => 'Add', 'remove' => 'Remove', 'player' => 'Player name',
+        'add_heading' => ['ops' => 'Make a player operator', 'whitelist' => 'Add a player to the whitelist', 'banned' => 'Ban a player'],
+        'remove_heading' => ['ops' => 'Remove :name as operator', 'whitelist' => 'Remove :name from the whitelist', 'banned' => 'Unban :name'],
     ],
 
     'history' => [

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $query_port
  * @property int|null $rcon_port
  * @property string|null $rcon_password
+ * @property list<array{label: string, command: string}>|null $custom_actions
  */
 class ServerSetting extends Model
 {
@@ -27,7 +28,7 @@ class ServerSetting extends Model
 
     protected function casts(): array
     {
-        return ['rcon_password' => 'encrypted', 'query_port' => 'integer', 'rcon_port' => 'integer'];
+        return ['rcon_password' => 'encrypted', 'query_port' => 'integer', 'rcon_port' => 'integer', 'custom_actions' => 'array'];
     }
 
     public function server(): BelongsTo

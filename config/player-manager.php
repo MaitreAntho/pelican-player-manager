@@ -11,6 +11,9 @@ return [
     // Days of history kept.
     'retention_days' => (int) env('PLAYER_MANAGER_RETENTION_DAYS', 30),
 
+    // Minecraft Java: show skin heads before player names (images loaded by the browser from minotar.net).
+    'heads' => env('PLAYER_MANAGER_HEADS', true),
+
     // Seconds between two refreshes of the player list on the page.
     'refresh' => (int) env('PLAYER_MANAGER_REFRESH', 15),
 ];

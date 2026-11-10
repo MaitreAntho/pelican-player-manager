@@ -417,10 +417,110 @@ class PlayerService
         return $v === null ? null : trim((string) $v);
     }
 
+    /** Most custom player actions a server can have. */
+    public const MAX_CUSTOM_ACTIONS = 10;
+
+    /**
+     * Commands the owner added to each player's menu.
+     *
+     * @return list<array{label: string, command: string}>
+     */
+    public function customActions(Server $server): array
+    {
+        $actions = [];
+        foreach ((array) ($this->setting($server)?->custom_actions ?? []) as $a) {
+            if (is_array($a) && filled($a['label'] ?? null) && filled($a['command'] ?? null)) {
+                $actions[] = ['label' => (string) $a['label'], 'command' => (string) $a['command']];
+            }
+        }
+
+        return array_slice($actions, 0, self::MAX_CUSTOM_ACTIONS);
+    }
+
+    /**
+     * Runs one of the server's custom actions on a player.
+     *
+     * @param  array{name?: string, id?: ?string}  $player
+     * @return array{command: string, output: string, via: string, fallback?: ?string}
+     */
+    public function runCustom(Server $server, int $index, array $player, string $text = ''): array
+    {
+        $action = $this->customActions($server)[$index] ?? null;
+        if (!$action) {
+            throw new ProtocolException('This player action no longer exists.');
+        }
+        $name = self::clean((string) ($player['name'] ?? ''));
+        $command = self::clean(strtr($action['command'], [
+            '{name}' => $name,
+            '{id}' => self::clean((string) ($player['id'] ?? '')) ?: $name,
+            '{text}' => self::clean($text),
+        ]));
+
+        return ['command' => $command] + $this->run($server, $command);
+    }
+
+    /** Minecraft Java servers keep their operators, whitelist and bans in json files. */
+    public const MINECRAFT_LISTS = ['ops' => 'ops.json', 'whitelist' => 'whitelist.json', 'banned' => 'banned-players.json'];
+
+    /**
+     * The operators, whitelist and banned players of a Minecraft Java server, read
+     * from its files; null for other games.
+     *
+     * @return array<string, list<array{name: string, uuid: ?string, detail: ?string}>>|null
+     */
+    public function minecraftLists(Server $server, bool $fresh = false): ?array
+    {
+        if (($this->game($server)['key'] ?? null) !== 'minecraft') {
+            return null;
+        }
+
+        $lists = [];
+        foreach (self::MINECRAFT_LISTS as $list => $path) {
+            if ($fresh) {
+                Cache::forget($this->fileKey($server, $path));
+            }
+            $rows = json_decode($this->file($server, $path) ?? '', true);
+            $lists[$list] = [];
+            foreach (is_array($rows) ? $rows : [] as $row) {
+                if (!is_array($row) || !is_string($row['name'] ?? null) || $row['name'] === '') {
+                    continue;
+                }
+                $detail = match ($list) {
+                    'ops' => isset($row['level']) ? (string) $row['level'] : null,
+                    'banned' => is_string($row['reason'] ?? null) && $row['reason'] !== 'Banned by an operator.' ? $row['reason'] : null,
+                    default => null,
+                };
+                $lists[$list][] = ['name' => $row['name'], 'uuid' => is_string($row['uuid'] ?? null) ? $row['uuid'] : null, 'detail' => $detail];
+            }
+            usort($lists[$list], fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+        }
+
+        return $lists;
+    }
+
+    /** Shown when a name has no Minecraft account (offline-mode servers). */
+    public const DEFAULT_HEAD = 'https://minotar.net/helm/MHF_Steve/32.png';
+
+    /** The skin head of a Minecraft Java player, or null when heads are off or the game is another one. */
+    public function head(Server $server, string $name, ?string $uuid = null): ?string
+    {
+        if (!config('player-manager.heads', true) || ($this->game($server)['key'] ?? null) !== 'minecraft' || $name === '') {
+            return null;
+        }
+        $who = $uuid && preg_match('/^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i', $uuid) ? str_replace('-', '', $uuid) : $name;
+
+        return 'https://minotar.net/helm/' . rawurlencode($who) . '/32.png';
+    }
+
+    private function fileKey(Server $server, string $path): string
+    {
+        return "player-manager.file.$server->id." . md5($path);
+    }
+
     /** A server file, cached a minute; null when missing or unreadable. */
     private function file(Server $server, string $path): ?string
     {
-        return Cache::remember("player-manager.file.$server->id." . md5($path), 60, function () use ($server, $path) {
+        return Cache::remember($this->fileKey($server, $path), 60, function () use ($server, $path) {
             try {
                 return app(DaemonFileRepository::class)->setServer($server)->getContent($path, 512 * 1024);
             } catch (Throwable) {

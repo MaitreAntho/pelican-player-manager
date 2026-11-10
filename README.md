@@ -28,6 +28,14 @@ A **Players** page on every game server lists the connected players, with their 
 
 <p align="center"><img src="docs/kick.png" alt="Kicking a player" width="70%" /></p>
 
+### 🧩 Your own player actions
+Add your own commands to each player's menu from the server's settings: `mute {name} {text}`, `tp {name} spawn`, `heal {name}`... `{name}` is the player, `{id}` their id when the game gives one, and `{text}` asks for a value (a duration, a reason) when you click. Works for every game.
+
+### ⛏️ Minecraft extras
+On Minecraft Java servers, the **operators**, the **whitelist** and the **banned players** are shown straight from `ops.json`, `whitelist.json` and `banned-players.json`, even when nobody is online. Add a player by name or remove one in a click. Every player gets their **skin head** next to their name.
+
+<p align="center"><img src="docs/minecraft-lists.png" alt="Operators, whitelist and banned players of a Minecraft server" width="90%" /></p>
+
 ### 🔌 Works without setup
 - **Listing players** uses the game's own query protocol (Steam A2S, Minecraft query...): nothing to configure, nothing written to the console.
 - **Actions** go through the game's **remote console** (RCON, telnet, BattlEye...) when the plugin finds its port and password in the startup variables or config files. Otherwise they go through the **Pelican console**, as if typed in the Console page: most eggs pass console input to the game, so no password is needed at all.
@@ -39,7 +47,7 @@ The game is recognised from the egg, with the right ports and commands. See [the
 The **daily peak** over the last 14 days and the **players recently seen**, collected once a minute through queries only.
 
 ### 🔐 Permissions
-Four subuser permissions in a **Players** section: **see** who is online, **manage** players (kick, ban, message...), **run commands**, and **configure** the game settings of the server. Owners and admins have all four.
+Four subuser permissions in a **Players** section: **see** who is online, **manage** players (kick, ban, message...), **run commands**, and **configure** the game settings of the server. Owners and admins have all four. Defining custom player actions needs both **configure** and **run commands**.
 
 ### ⚙️ Per-server settings
 Game, query port, remote console port and password can be set by hand when detection is not enough. Passwords are stored encrypted.
@@ -55,7 +63,7 @@ An admin page lists every egg with the game recognised, how players are listed a
 
 | Game | Player list | Actions |
 |---|---|---|
-| **Minecraft: Java** (Paper, Purpur, Spigot, Fabric, Forge, NeoForge, modpacks...) | Minecraft query, or status ping (12 names) | kick, ban, unban, message, whitelist, op |
+| **Minecraft: Java** (Paper, Purpur, Spigot, Fabric, Forge, NeoForge, modpacks...) | Minecraft query, or status ping (12 names), skin heads | kick, ban, unban, message, whitelist, op, and the ops / whitelist / bans lists |
 | **Minecraft: Bedrock** (BDS, Nukkit, PocketMine...) | Bedrock ping (count), names through the console | kick, message, allowlist, op |
 | **Minecraft proxies** (Velocity, BungeeCord, Waterfall) | status ping | - |
 | **Rust** | Steam query, WebRCON | kick, ban, unban, message |
@@ -105,6 +113,7 @@ In **Plugins → Player Manager → Settings**:
 |---|---|---|
 | Query host | empty | Address the panel uses to reach game servers. Empty: the allocation IP, or the node address when the allocation listens on `0.0.0.0`. |
 | Refresh every | 15 s | How often the player list updates. |
+| Minecraft skin heads | on | Skin heads before Minecraft Java player names. The images are loaded by the browser from [minotar.net](https://minotar.net). |
 | Keep player history | on | Daily peak and recently seen players. |
 | Keep history for | 30 days | |
 
@@ -114,6 +123,8 @@ In **Plugins → Player Manager → Settings**:
 - **Minecraft shows up to 12 names**: set `enable-query=true` in `server.properties` to list everyone.
 - **Bedrock shows nothing**: recent versions use `transport=nethernet`, which answers no query; set `transport=raknet`.
 - **"Password refused"**: the remote console password the plugin found is not the one the game uses. Enter it in the server's Player settings.
+- **A server is set to "Not a game server" by mistake**: open its Players page (still shown to users with the Configure permission) and pick its game, or Automatic, in the settings.
+- **Skin heads don't show**: the browser could not reach minotar.net (blocked network or extension). Turn heads off in the plugin settings if needed.
 - **Actions through the console do nothing**: the egg does not pass console input to the game (rare). Set up the game's remote console instead.
 
 ## 📄 License
